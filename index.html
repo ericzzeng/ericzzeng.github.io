@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>元素符号消消乐</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background-color: white;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .input-section {
+            margin-bottom: 30px;
+        }
+        input {
+            padding: 8px;
+            margin: 0 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .timer {
+            font-size: 24px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .game-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 1500px;
+            margin: 0 auto;
+            display: none;
+        }
+        .bubble {
+            width: 100px;
+            height: 100px;
+            margin: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            transform-style: preserve-3d;
+            position: relative;
+            perspective: 1000px;
+            font-weight: bold;
+        }
+        .bubble.symbol {
+            background-color: #87CEEB;
+        }
+        .bubble.name {
+            background-color: #C2B280;
+        }
+        .bubble.selected {
+            transform: scale(1.05) translateY(-5px);
+            box-shadow: 0 15px 25px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+        .bubble.matched {
+            visibility: hidden;
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.5s;
+        }
+        .symbol-text {
+            font-family: 'Times New Roman', serif;
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+        .name-text {
+            font-size: 16px;
+        }
+        .result-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            z-index: 100;
+            display: none;
+            max-width: 80%;
+        }
+        .result {
+            font-size: 24px;
+            color: #4CAF50;
+            margin-bottom: 20px;
+        }
+        .leaderboard {
+            margin-top: 20px;
+            border-collapse: collapse;
+            width: 100%;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .leaderboard th, .leaderboard td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        .leaderboard th {
+            background-color: #f2f2f2;
+        }
+        .leaderboard tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 99;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="input-section">
+        <input type="text" id="className" placeholder="请输入班级">
+        <input type="text" id="studentName" placeholder="请输入姓名">
+        <button id="startBtn">开始游戏</button>
+    </div>
+    
+    <h1 id="gameTitle">元素符号消消乐</h1>
+    <div class="timer" id="timer">时间: 0秒</div>
+    <div class="game-container" id="gameContainer"></div>
+    
+    <div class="overlay" id="overlay"></div>
+    <div class="result-container" id="resultContainer">
+        <div class="result" id="result"></div>
+        <h3 id="classTitle"></h3>
+        <table class="leaderboard" id="leaderboard">
+            <thead>
+                <tr>
+                    <th>排名</th>
+                    <th>姓名</th>
+                    <th>时间(秒)</th>
+                </tr>
+            </thead>
+            <tbody id="leaderboardBody"></tbody>
+        </table>
+        <button id="restartBtn">再玩一次</button>
+    </div>
+    
+    <audio id="bubbleSound" preload="auto">
+        <source src="data:audio/mpeg;base64,SUQzBAAAAAABEVRYWFgAAAAtAAADY29tbWVudABCaWdTb3VuZEJhbmsuY29tIC8gTGFTb25vdGhlcXVlLm9yZwBURU5DAAAAHQAAA1N3aXRjaCBQbHVzIMKpIE5DSCBTb2Z0d2FyZQBUSVQyAAAABgAAAzIyMzUAVFNTRQAAAA8AAANMYXZmNTcuODMuMTAwAAAAAAAAAAAAAAD/80DEAAAAA0gAAAAATEFNRTMuMTAwVVVVVVVVVVVVVUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQsRbAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQMSkAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV" type="audio/mpeg">
+    </audio>
+    
+    <script>
+        // 元素数据
+        const elements = [
+            { symbol: "H", name: "氢" },
+            { symbol: "He", name: "氦" },
+            { symbol: "Li", name: "锂" },
+            { symbol: "Be", name: "铍" },
+            { symbol: "B", name: "硼" },
+            { symbol: "C", name: "碳" },
+            { symbol: "N", name: "氮" },
+            { symbol: "O", name: "氧" },
+            { symbol: "F", name: "氟" },
+            { symbol: "Ne", name: "氖" },
+            { symbol: "Na", name: "钠" },
+            { symbol: "Mg", name: "镁" },
+            { symbol: "Al", name: "铝" },
+            { symbol: "Si", name: "硅" },
+            { symbol: "P", name: "磷" },
+            { symbol: "S", name: "硫" },
+            { symbol: "Cl", name: "氯" },
+            { symbol: "Ar", name: "氩" },
+            { symbol: "K", name: "钾" },
+            { symbol: "Ca", name: "钙" },
+            { symbol: "Cu", name: "铜" },
+            { symbol: "Hg", name: "汞" },
+            { symbol: "Ag", name: "银" },
+            { symbol: "Pt", name: "铂" },
+            { symbol: "Au", name: "金" },
+            { symbol: "Mn", name: "锰" },
+            { symbol: "Fe", name: "铁" },
+            { symbol: "Ba", name: "钡" },
+            { symbol: "I", name: "碘" },
+            { symbol: "Zn", name: "锌" }
+        ];
+        
+        // 游戏变量
+        let selectedBubbles = [];
+        let matchedPairs = 0;
+        let startTime;
+        let timer;
+        let currentTime = 0;
+        let gameData = JSON.parse(localStorage.getItem('elementGameData')) || {};
+        let currentClassName = '';
+        
+        // DOM元素
+        const gameTitle = document.getElementById('gameTitle');
+        const gameContainer = document.getElementById('gameContainer');
+        const timerElement = document.getElementById('timer');
+        const startBtn = document.getElementById('startBtn');
+        const restartBtn = document.getElementById('restartBtn');
+        const resultDiv = document.getElementById('result');
+        const resultContainer = document.getElementById('resultContainer');
+        const classTitle = document.getElementById('classTitle');
+        const leaderboard = document.getElementById('leaderboard');
+        const leaderboardBody = document.getElementById('leaderboardBody');
+        const bubbleSound = document.getElementById('bubbleSound');
+        const classNameInput = document.getElementById('className');
+        const studentNameInput = document.getElementById('studentName');
+        const overlay = document.getElementById('overlay');
+        
+        // 开始游戏
+        startBtn.addEventListener('click', startGame);
+        restartBtn.addEventListener('click', restartGame);
+        
+        function startGame() {
+            const className = classNameInput.value.trim();
+            const studentName = studentNameInput.value.trim();
+            
+            if (!className || !studentName) {
+                alert('请输入班级和姓名');
+                return;
+            }
+            
+            currentClassName = className;
+            
+            // 初始化游戏数据
+            if (!gameData[className]) {
+                gameData[className] = [];
+            }
+            
+            // 重置游戏状态
+            selectedBubbles = [];
+            matchedPairs = 0;
+            gameContainer.innerHTML = '';
+            
+            // 显示游戏标题、区域和计时器
+            gameTitle.style.display = 'block';
+            gameContainer.style.display = 'flex';
+            timerElement.style.display = 'block';
+            
+            // 隐藏输入区域
+            document.querySelector('.input-section').style.display = 'none';
+            
+            // 隐藏结果区域
+            resultContainer.style.display = 'none';
+            overlay.style.display = 'none';
+            
+            // 创建游戏卡片
+            createGameCards();
+            
+            // 开始计时
+            startTime = new Date().getTime();
+            currentTime = 0;
+            timerElement.textContent = `时间: ${currentTime}秒`;
+            clearInterval(timer);
+            timer = setInterval(updateTimer, 1000);
+        }
+        
+        function restartGame() {
+            resultContainer.style.display = 'none';
+            overlay.style.display = 'none';
+            document.querySelector('.input-section').style.display = 'block';
+            gameTitle.style.display = 'none';
+            timerElement.style.display = 'none';
+            gameContainer.style.display = 'none';
+            
+            // 清空输入框
+            classNameInput.value = '';
+            studentNameInput.value = '';
+        }
+        
+        function updateTimer() {
+            currentTime = Math.floor((new Date().getTime() - startTime) / 1000);
+            timerElement.textContent = `时间: ${currentTime}秒`;
+        }
+        
+        function createGameCards() {
+            // 创建符号和名称的卡片
+            const symbolCards = [...elements];
+            const nameCards = [...elements];
+            
+            // 打乱顺序
+            shuffleArray(symbolCards);
+            shuffleArray(nameCards);
+            
+            // 合并并创建气泡
+            const allCards = [];
+            
+            // 添加符号卡片
+            symbolCards.forEach(element => {
+                allCards.push({
+                    type: 'symbol',
+                    value: element.symbol,
+                    match: element.name
+                });
+            });
+            
+            // 添加名称卡片
+            nameCards.forEach(element => {
+                allCards.push({
+                    type: 'name',
+                    value: element.name,
+                    match: element.symbol
+                });
+            });
+            
+            // 再次打乱
+            shuffleArray(allCards);
+            
+            // 创建气泡元素
+            allCards.forEach((card, index) => {
+                const bubble = document.createElement('div');
+                bubble.className = `bubble ${card.type}`;
+                bubble.dataset.type = card.type;
+                bubble.dataset.value = card.value;
+                bubble.dataset.match = card.match;
+                bubble.dataset.index = index;
+                
+                const symbolText = document.createElement('div');
+                symbolText.className = 'symbol-text';
+                symbolText.textContent = card.type === 'symbol' ? card.value : '';
+                
+                const nameText = document.createElement('div');
+                nameText.className = 'name-text';
+                nameText.textContent = card.type === 'name' ? card.value : '';
+                
+                bubble.appendChild(symbolText);
+                bubble.appendChild(nameText);
+                
+                bubble.addEventListener('click', handleBubbleClick);
+                
+                gameContainer.appendChild(bubble);
+            });
+        }
+        
+        function handleBubbleClick(event) {
+            const bubble = event.currentTarget;
+            
+            // 如果已经选中或者是已匹配的，则忽略
+            if (bubble.classList.contains('selected') || bubble.classList.contains('matched')) {
+                return;
+            }
+            
+            // 播放音效
+            bubbleSound.currentTime = 0;
+            bubbleSound.play();
+            
+            // 选中当前气泡
+            bubble.classList.add('selected');
+            selectedBubbles.push(bubble);
+            
+            // 如果选中了两个气泡
+            if (selectedBubbles.length === 2) {
+                const bubble1 = selectedBubbles[0];
+                const bubble2 = selectedBubbles[1];
+                
+                // 检查是否匹配
+                if ((bubble1.dataset.type !== bubble2.dataset.type) && 
+                    ((bubble1.dataset.value === bubble2.dataset.match) && 
+                     (bubble2.dataset.value === bubble1.dataset.match))) {
+                    // 匹配成功
+                    setTimeout(() => {
+                        bubble1.classList.add('matched');
+                        bubble2.classList.add('matched');
+                        selectedBubbles = [];
+                        matchedPairs++;
+                        
+                        // 检查游戏是否结束
+                        if (matchedPairs === elements.length) {
+                            endGame();
+                        }
+                    }, 500);
+                } else {
+                    // 不匹配
+                    setTimeout(() => {
+                        bubble1.classList.remove('selected');
+                        bubble2.classList.remove('selected');
+                        selectedBubbles = [];
+                    }, 1000);
+                }
+            }
+        }
+        
+        function endGame() {
+            clearInterval(timer);
+            const endTime = new Date().getTime();
+            const timeUsed = Math.floor((endTime - startTime) / 1000);
+            
+            // 隐藏游戏区域和计时器
+            gameContainer.style.display = 'none';
+            timerElement.style.display = 'none';
+            
+            // 显示结果
+            resultDiv.textContent = `恭喜你挑战成功！用时: ${timeUsed}秒`;
+            classTitle.textContent = `${currentClassName} 排行榜`;
+            
+            // 保存成绩
+            const studentName = studentNameInput.value.trim();
+            
+            // 检查是否已有记录，只保留最短时间
+            const existingRecordIndex = gameData[currentClassName].findIndex(record => record.name === studentName);
+            
+            if (existingRecordIndex === -1) {
+                // 新记录
+                gameData[currentClassName].push({
+                    name: studentName,
+                    time: timeUsed,
+                    date: new Date().toLocaleString()
+                });
+            } else if (timeUsed < gameData[currentClassName][existingRecordIndex].time) {
+                // 更新为更短时间
+                gameData[currentClassName][existingRecordIndex] = {
+                    name: studentName,
+                    time: timeUsed,
+                    date: new Date().toLocaleString()
+                };
+            }
+            
+            // 按时间排序
+            gameData[currentClassName].sort((a, b) => a.time - b.time);
+            
+            // 保存到本地存储
+            localStorage.setItem('elementGameData', JSON.stringify(gameData));
+            
+            // 显示排行榜（仅当前班级）
+            showLeaderboard(currentClassName);
+            
+            // 显示结果容器和遮罩
+            resultContainer.style.display = 'block';
+            overlay.style.display = 'block';
+        }
+        
+        function showLeaderboard(className) {
+            leaderboardBody.innerHTML = '';
+            
+            const classData = gameData[className] || [];
+            const topScores = classData.slice(0, 10); // 显示前10名
+            
+            if (topScores.length === 0) {
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = 3;
+                cell.textContent = '暂无记录';
+                row.appendChild(cell);
+                leaderboardBody.appendChild(row);
+                return;
+            }
+            
+            topScores.forEach((score, index) => {
+                const row = document.createElement('tr');
+                
+                const rankCell = document.createElement('td');
+                rankCell.textContent = index + 1;
+                
+                const nameCell = document.createElement('td');
+                nameCell.textContent = score.name;
+                
+                const timeCell = document.createElement('td');
+                timeCell.textContent = score.time;
+                
+                row.appendChild(rankCell);
+                row.appendChild(nameCell);
+                row.appendChild(timeCell);
+                
+                leaderboardBody.appendChild(row);
+            });
+        }
+        
+        // 辅助函数：打乱数组顺序
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+    </script>
+</body>
+</html>
