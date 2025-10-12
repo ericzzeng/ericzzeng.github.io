@@ -147,13 +147,24 @@
     <div class="input-section">
         <input type="text" id="className" placeholder="请输入班级">
         <input type="text" id="studentName" placeholder="请输入姓名">
+        <select id="gameMode">
+            <option value="snake" selected>元素符号贪吃蛇</option>
+            <option value="match">元素符号消消乐</option>
+        </select>
+        <select id="speedLevel">
+            <option value="1">速度1（慢）</option>
+            <option value="2">速度2</option>
+            <option value="3" selected>速度3（中）</option>
+            <option value="4">速度4</option>
+            <option value="5">速度5（快）</option>
+        </select>
         <button id="startBtn">开始游戏</button>
     </div>
-    
+
     <h1 id="gameTitle">元素符号消消乐</h1>
     <div class="timer" id="timer">时间: 0秒</div>
     <div class="game-container" id="gameContainer"></div>
-    
+
     <div class="overlay" id="overlay"></div>
     <div class="result-container" id="resultContainer">
         <div class="result" id="result"></div>
@@ -170,11 +181,11 @@
         </table>
         <button id="restartBtn">再玩一次</button>
     </div>
-    
+
     <audio id="bubbleSound" preload="auto">
-        <source src="data:audio/mpeg;base64,SUQzBAAAAAABEVRYWFgAAAAtAAADY29tbWVudABCaWdTb3VuZEJhbmsuY29tIC8gTGFTb25vdGhlcXVlLm9yZwBURU5DAAAAHQAAA1N3aXRjaCBQbHVzIMKpIE5DSCBTb2Z0d2FyZQBUSVQyAAAABgAAAzIyMzUAVFNTRQAAAA8AAANMYXZmNTcuODMuMTAwAAAAAAAAAAAAAAD/80DEAAAAA0gAAAAATEFNRTMuMTAwVVVVVVVVVVVVVUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQsRbAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQMSkAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV" type="audio/mpeg">
+        <source src="data:audio/mpeg;base64,SUQzBAAAAAABEVRYWFgAAAAtAAADY29tbWVudABCaWdTb3VuZEJhbmsuY29tIC8gTGFTb25vdGhlcXVlLm9yZwBURU5DAAAAHQAAA1N3aXRjaCBQbHVzIMKpIE5DSCBTb2Z0d2FyZQBUSVQyAAAABgAAAzIyMzUAVFNTRQAAAA8AAANMYXZmNTcuODMuMTAwAAAAAAAAAAAAAAD/80DEAAAAA0gAAAAATEFNRTMuMTAwVVVVVVVVVVVVVUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV" type="audio/mpeg">
     </audio>
-    
+
     <script>
         // 元素数据
         const elements = [
@@ -209,7 +220,7 @@
             { symbol: "I", name: "碘" },
             { symbol: "Zn", name: "锌" }
         ];
-        
+
         // 游戏变量
         let selectedBubbles = [];
         let matchedPairs = 0;
@@ -218,7 +229,23 @@
         let currentTime = 0;
         let gameData = JSON.parse(localStorage.getItem('elementGameData')) || {};
         let currentClassName = '';
-        
+
+        // 贪吃蛇游戏变量
+        let snake = [];
+        let foods = [];
+        let direction = 'right';
+        let gameInterval;
+        let correctCount = 0;
+        let wrongCount = 0;
+        // 添加元素记录变量
+        let correctElements = [];
+        let wrongElements = [];
+
+        // 速度控制变量
+        let snakeSpeed = 200; // 初始速度（毫秒）
+        let speedLevel = 1; // 速度等级
+        const MAX_SPEED_LEVEL = 5; // 最大速度等级
+
         // DOM元素
         const gameTitle = document.getElementById('gameTitle');
         const gameContainer = document.getElementById('gameContainer');
@@ -234,55 +261,284 @@
         const classNameInput = document.getElementById('className');
         const studentNameInput = document.getElementById('studentName');
         const overlay = document.getElementById('overlay');
-        
+        // 添加元素显示区域
+        const eatenElementsContainer = document.createElement('div');
+        eatenElementsContainer.style.display = 'flex';
+        eatenElementsContainer.style.justifyContent = 'space-around';
+        eatenElementsContainer.style.width = '100%';
+        eatenElementsContainer.style.marginTop = '20px';
+
+        const correctElementsDiv = document.createElement('div');
+        correctElementsDiv.innerHTML = '<h3>正确元素:</h3><ul id="correct-list"></ul>';
+
+        const wrongElementsDiv = document.createElement('div');
+        wrongElementsDiv.innerHTML = '<h3>错误元素:</h3><ul id="wrong-list"></ul>';
+
+        eatenElementsContainer.appendChild(correctElementsDiv);
+        eatenElementsContainer.appendChild(wrongElementsDiv);
+
+        // 速度显示元素
+        const speedDisplay = document.createElement('div');
+        speedDisplay.id = 'speed-display';
+        speedDisplay.style.position = 'absolute';
+        speedDisplay.style.top = '10px';
+        speedDisplay.style.right = '10px';
+        speedDisplay.style.color = 'white';
+        speedDisplay.style.fontFamily = 'Arial, sans-serif';
+        speedDisplay.style.fontSize = '16px';
+        speedDisplay.textContent = `速度: ${speedLevel}/${MAX_SPEED_LEVEL}`;
+        document.body.appendChild(speedDisplay);
+
         // 开始游戏
         startBtn.addEventListener('click', startGame);
         restartBtn.addEventListener('click', restartGame);
-        
+
         function startGame() {
             const className = classNameInput.value.trim();
             const studentName = studentNameInput.value.trim();
-            
+            const gameMode = document.getElementById('gameMode').value;
+
             if (!className || !studentName) {
                 alert('请输入班级和姓名');
                 return;
             }
-            
+
             currentClassName = className;
-            
+
             // 初始化游戏数据
             if (!gameData[className]) {
                 gameData[className] = [];
             }
-            
+
             // 重置游戏状态
             selectedBubbles = [];
             matchedPairs = 0;
             gameContainer.innerHTML = '';
-            
+
             // 显示游戏标题、区域和计时器
             gameTitle.style.display = 'block';
-            gameContainer.style.display = 'flex';
             timerElement.style.display = 'block';
-            
+
             // 隐藏输入区域
             document.querySelector('.input-section').style.display = 'none';
-            
+
             // 隐藏结果区域
             resultContainer.style.display = 'none';
             overlay.style.display = 'none';
-            
-            // 创建游戏卡片
-            createGameCards();
-            
-            // 开始计时
-            startTime = new Date().getTime();
-            currentTime = 0;
-            timerElement.textContent = `时间: ${currentTime}秒`;
-            clearInterval(timer);
-            timer = setInterval(updateTimer, 1000);
+
+            // 根据游戏模式初始化
+            if (gameMode === 'match') {
+                gameTitle.textContent = '元素符号消消乐';
+                gameContainer.style.display = 'flex';
+                if (document.getElementById('snakeCanvas')) {
+                    document.getElementById('snakeCanvas').style.display = 'none';
+                }
+                createGameCards();
+
+                // 开始计时
+                startTime = new Date().getTime();
+                currentTime = 0;
+                timerElement.textContent = `时间: ${currentTime}秒`;
+                clearInterval(timer);
+                timer = setInterval(updateTimer, 1000);
+            } else {
+                gameTitle.textContent = '元素符号贪吃蛇';
+                gameContainer.style.display = 'none';
+                // 显示游戏标题和计时器
+                gameTitle.style.display = 'block';
+                timerElement.style.display = 'block';
+                // 开始计时
+                startTime = new Date().getTime();
+                currentTime = 0;
+                timerElement.textContent = `时间: ${currentTime}秒`;
+                clearInterval(timer);
+                timer = setInterval(updateTimer, 1000);
+                // 初始化贪吃蛇游戏
+                initSnakeGame();
+            }
         }
-        
+
+        // 生成食物（确保与蛇身网格精确对齐）
+        function generateFood() {
+            foods = [];
+
+            // 生成正确食物
+            const correctFood = generateOneFood(true);
+            foods.push(correctFood);
+            // 显示正确食物的中文名
+            showCenterHint(correctFood.element.name);
+
+            // 生成错误食物
+            const wrongFood = generateOneFood(false);
+            foods.push(wrongFood);
+        }
+
+        function generateOneFood(isCorrect) {
+            const canvas = document.getElementById('snakeCanvas');
+            const cols = Math.floor(canvas.width / 20);
+            const rows = Math.floor(canvas.height / 20);
+
+            let validPosition = false;
+            let x, y;
+
+            while (!validPosition) {
+                const col = Math.floor(Math.random() * cols);
+                const row = Math.floor(Math.random() * rows);
+                x = col * 20;
+                y = row * 20;
+
+                validPosition = true;
+
+                // 检查是否与蛇身重叠
+                for (let i = 0; i < snake.length; i++) {
+                    if (snake[i].x === x && snake[i].y === y) {
+                        validPosition = false;
+                        break;
+                    }
+                }
+
+                // 检查是否与其他食物重叠
+                for (let i = 0; i < foods.length; i++) {
+                    if (foods[i] && foods[i].x === x && foods[i].y === y) {
+                        validPosition = false;
+                        break;
+                    }
+                }
+            }
+
+            const randomElement = elements[Math.floor(Math.random() * elements.length)];
+
+            return {
+                x,
+                y,
+                element: randomElement,
+                isCorrect,
+                eaten: false
+            };
+        }
+
+        // 初始化贪吃蛇游戏
+        function initSnakeGame() {
+            // 获取速度选择值
+            const speedLevelSelect = document.getElementById('speedLevel');
+            speedLevel = parseInt(speedLevelSelect.value);
+            snakeSpeed = 200 - (speedLevel - 1) * 30; // 速度等级越高，间隔越短
+            updateSpeedDisplay();
+
+            // 创建画布元素（如果不存在）
+            let canvas = document.getElementById('snakeCanvas');
+            if (!canvas) {
+                canvas = document.createElement('canvas');
+                canvas.id = 'snakeCanvas';
+                canvas.width = 600;
+                canvas.height = 400;
+                canvas.style.display = 'none';
+                canvas.style.border = '1px solid #000';
+                canvas.style.margin = '0 auto';
+                // 将画布添加到游戏容器中
+                gameContainer.appendChild(canvas);
+                // 添加元素显示区域
+                gameContainer.appendChild(eatenElementsContainer);
+            }
+
+            // 获取画布上下文
+            const ctx = canvas.getContext('2d');
+
+            // 中央提示状态
+            centerHint = {
+                text: '',
+                visible: false
+            };
+
+            // 重置游戏状态
+            snake = [
+                {x: 160, y: 160, isError: false},
+                {x: 140, y: 160, isError: false},
+                {x: 120, y: 160, isError: false}
+            ];
+            direction = 'right';
+            correctCount = 0;
+            wrongCount = 0;
+            // 重置元素记录
+            correctElements = [];
+            wrongElements = [];
+            updateEatenLists();
+
+            // 显示游戏容器和画布
+            gameContainer.style.display = 'flex';
+            canvas.style.display = 'block';
+            eatenElementsContainer.style.display = 'flex';
+
+            // 生成第一个食物
+            generateFood();
+
+            // 开始游戏循环
+            clearInterval(gameInterval);
+            gameInterval = setInterval(() => {
+                let ateFood = checkFoodCollision();
+                moveSnake(ateFood);
+
+                if (checkCollision()) {
+                    endGame();
+                    return;
+                }
+
+                drawGame(ctx, canvas);
+            }, snakeSpeed);
+
+            // 添加键盘控制
+            document.addEventListener('keydown', handleKeyDown);
+        }
+
+        function handleKeyDown(e) {
+            // 改变方向
+            const keyPressed = e.keyCode;
+
+            // 防止180度转向（支持方向键和WASD）
+            if ((keyPressed === 37 || keyPressed === 65) && direction !== 'right') direction = 'left';   // 左箭头或A
+            else if ((keyPressed === 38 || keyPressed === 87) && direction !== 'down') direction = 'up';    // 上箭头或W
+            else if ((keyPressed === 39 || keyPressed === 68) && direction !== 'left') direction = 'right'; // 右箭头或D
+            else if ((keyPressed === 40 || keyPressed === 83) && direction !== 'up') direction = 'down';   // 下箭头或S
+
+            // 添加速度控制（+/-键）
+            if (e.key === '+' || e.key === '=') {
+                increaseSpeed();
+            } else if (e.key === '-' || e.key === '_') {
+                decreaseSpeed();
+            }
+        }
+
+        function increaseSpeed() {
+            if (speedLevel < MAX_SPEED_LEVEL) {
+                speedLevel++;
+                snakeSpeed = Math.max(50, snakeSpeed - 30); // 每次加速减少30毫秒，最小50毫秒
+                updateSpeedDisplay();
+                restartGameLoop();
+            }
+        }
+
+        function decreaseSpeed() {
+            if (speedLevel > 1) {
+                speedLevel--;
+                snakeSpeed += 30; // 每次减速增加30毫秒
+                updateSpeedDisplay();
+                restartGameLoop();
+            }
+        }
+
+        function updateSpeedDisplay() {
+            speedDisplay.textContent = `速度: ${speedLevel}/${MAX_SPEED_LEVEL}`;
+        }
+
+        function restartGameLoop() {
+            if (gameInterval) {
+                clearInterval(gameInterval);
+            }
+            if (gameState === 'running') {
+                gameInterval = setInterval(gameLoop, snakeSpeed);
+            }
+        }
+
         function restartGame() {
             resultContainer.style.display = 'none';
             overlay.style.display = 'none';
@@ -290,29 +546,29 @@
             gameTitle.style.display = 'none';
             timerElement.style.display = 'none';
             gameContainer.style.display = 'none';
-            
+
             // 清空输入框
             classNameInput.value = '';
             studentNameInput.value = '';
         }
-        
+
         function updateTimer() {
             currentTime = Math.floor((new Date().getTime() - startTime) / 1000);
             timerElement.textContent = `时间: ${currentTime}秒`;
         }
-        
+
         function createGameCards() {
             // 创建符号和名称的卡片
             const symbolCards = [...elements];
             const nameCards = [...elements];
-            
+
             // 打乱顺序
             shuffleArray(symbolCards);
             shuffleArray(nameCards);
-            
+
             // 合并并创建气泡
             const allCards = [];
-            
+
             // 添加符号卡片
             symbolCards.forEach(element => {
                 allCards.push({
@@ -321,7 +577,7 @@
                     match: element.name
                 });
             });
-            
+
             // 添加名称卡片
             nameCards.forEach(element => {
                 allCards.push({
@@ -330,10 +586,10 @@
                     match: element.symbol
                 });
             });
-            
+
             // 再次打乱
             shuffleArray(allCards);
-            
+
             // 创建气泡元素
             allCards.forEach((card, index) => {
                 const bubble = document.createElement('div');
@@ -342,48 +598,48 @@
                 bubble.dataset.value = card.value;
                 bubble.dataset.match = card.match;
                 bubble.dataset.index = index;
-                
+
                 const symbolText = document.createElement('div');
                 symbolText.className = 'symbol-text';
                 symbolText.textContent = card.type === 'symbol' ? card.value : '';
-                
+
                 const nameText = document.createElement('div');
                 nameText.className = 'name-text';
                 nameText.textContent = card.type === 'name' ? card.value : '';
-                
+
                 bubble.appendChild(symbolText);
                 bubble.appendChild(nameText);
-                
+
                 bubble.addEventListener('click', handleBubbleClick);
-                
+
                 gameContainer.appendChild(bubble);
             });
         }
-        
+
         function handleBubbleClick(event) {
             const bubble = event.currentTarget;
-            
+
             // 如果已经选中或者是已匹配的，则忽略
             if (bubble.classList.contains('selected') || bubble.classList.contains('matched')) {
                 return;
             }
-            
+
             // 播放音效
             bubbleSound.currentTime = 0;
             bubbleSound.play();
-            
+
             // 选中当前气泡
             bubble.classList.add('selected');
             selectedBubbles.push(bubble);
-            
+
             // 如果选中了两个气泡
             if (selectedBubbles.length === 2) {
                 const bubble1 = selectedBubbles[0];
                 const bubble2 = selectedBubbles[1];
-                
+
                 // 检查是否匹配
-                if ((bubble1.dataset.type !== bubble2.dataset.type) && 
-                    ((bubble1.dataset.value === bubble2.dataset.match) && 
+                if ((bubble1.dataset.type !== bubble2.dataset.type) &&
+                    ((bubble1.dataset.value === bubble2.dataset.match) &&
                      (bubble2.dataset.value === bubble1.dataset.match))) {
                     // 匹配成功
                     setTimeout(() => {
@@ -391,7 +647,7 @@
                         bubble2.classList.add('matched');
                         selectedBubbles = [];
                         matchedPairs++;
-                        
+
                         // 检查游戏是否结束
                         if (matchedPairs === elements.length) {
                             endGame();
@@ -407,62 +663,68 @@
                 }
             }
         }
-        
-        function endGame() {
-            clearInterval(timer);
-            const endTime = new Date().getTime();
-            const timeUsed = Math.floor((endTime - startTime) / 1000);
-            
-            // 隐藏游戏区域和计时器
-            gameContainer.style.display = 'none';
-            timerElement.style.display = 'none';
-            
-            // 显示结果
-            resultDiv.textContent = `恭喜你挑战成功！用时: ${timeUsed}秒`;
-            classTitle.textContent = `${currentClassName} 排行榜`;
-            
-            // 保存成绩
-            const studentName = studentNameInput.value.trim();
-            
-            // 检查是否已有记录，只保留最短时间
-            const existingRecordIndex = gameData[currentClassName].findIndex(record => record.name === studentName);
-            
-            if (existingRecordIndex === -1) {
-                // 新记录
-                gameData[currentClassName].push({
-                    name: studentName,
-                    time: timeUsed,
-                    date: new Date().toLocaleString()
-                });
-            } else if (timeUsed < gameData[currentClassName][existingRecordIndex].time) {
-                // 更新为更短时间
-                gameData[currentClassName][existingRecordIndex] = {
-                    name: studentName,
-                    time: timeUsed,
-                    date: new Date().toLocaleString()
-                };
+
+        // 改变方向
+        function changeDirection(e) {
+            const keyPressed = e.keyCode;
+
+            // 防止180度转向（支持方向键和WASD）
+            if ((keyPressed === 37 || keyPressed === 65) && direction !== 'right') direction = 'left';   // 左箭头或A
+            else if ((keyPressed === 38 || keyPressed === 87) && direction !== 'down') direction = 'up';    // 上箭头或W
+            else if ((keyPressed === 39 || keyPressed === 68) && direction !== 'left') direction = 'right'; // 右箭头或D
+            else if ((keyPressed === 40 || keyPressed === 83) && direction !== 'up') direction = 'down';   // 下箭头或S
+        }
+
+        // 检查碰撞
+        function checkCollision() {
+            const head = snake[0];
+            const canvas = document.getElementById('snakeCanvas');
+
+            // 撞墙检测
+            if (head.x < 0 || head.x >= canvas.width || head.y < 0 || head.y >= canvas.height) {
+                return true;
             }
-            
-            // 按时间排序
-            gameData[currentClassName].sort((a, b) => a.time - b.time);
-            
-            // 保存到本地存储
-            localStorage.setItem('elementGameData', JSON.stringify(gameData));
-            
-            // 显示排行榜（仅当前班级）
-            showLeaderboard(currentClassName);
-            
+
+            // 撞到自己检测（跳过头部）
+            for (let i = 1; i < snake.length; i++) {
+                if (head.x === snake[i].x && head.y === snake[i].y) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // 游戏结束
+        function endGame() {
+            clearInterval(gameInterval);
+            document.removeEventListener('keydown', changeDirection);
+
+            // 计算正确率
+            const total = correctCount + wrongCount;
+            const accuracy = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+
+            // 显示结果
+            resultDiv.textContent = `游戏结束！正确率: ${accuracy}% (${correctCount}/${total})`;
+            classTitle.textContent = `${currentClassName} 排行榜`;
+
+            // 隐藏游戏区域
+            document.getElementById('snakeCanvas').style.display = 'none';
+
             // 显示结果容器和遮罩
             resultContainer.style.display = 'block';
             overlay.style.display = 'block';
+
+            // 保存成绩（如果需要）
+            // 贪吃蛇模式暂时不保存成绩
         }
-        
+
         function showLeaderboard(className) {
             leaderboardBody.innerHTML = '';
-            
+
             const classData = gameData[className] || [];
             const topScores = classData.slice(0, 10); // 显示前10名
-            
+
             if (topScores.length === 0) {
                 const row = document.createElement('tr');
                 const cell = document.createElement('td');
@@ -472,27 +734,27 @@
                 leaderboardBody.appendChild(row);
                 return;
             }
-            
+
             topScores.forEach((score, index) => {
                 const row = document.createElement('tr');
-                
+
                 const rankCell = document.createElement('td');
                 rankCell.textContent = index + 1;
-                
+
                 const nameCell = document.createElement('td');
                 nameCell.textContent = score.name;
-                
+
                 const timeCell = document.createElement('td');
                 timeCell.textContent = score.time;
-                
+
                 row.appendChild(rankCell);
                 row.appendChild(nameCell);
                 row.appendChild(timeCell);
-                
+
                 leaderboardBody.appendChild(row);
             });
         }
-        
+
         // 辅助函数：打乱数组顺序
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
@@ -500,6 +762,155 @@
                 [array[i], array[j]] = [array[j], array[i]];
             }
             return array;
+        }
+
+        // 贪吃蛇移动函数
+        function moveSnake(ateFood) {
+            const head = {x: snake[0].x, y: snake[0].y, isError: false};
+
+            // 根据方向移动头部
+            if (direction === 'right') head.x += 20;
+            else if (direction === 'left') head.x -= 20;
+            else if (direction === 'up') head.y -= 20;
+            else if (direction === 'down') head.y += 20;
+
+            // 添加新头部
+            snake.unshift(head);
+
+            // 如果没有吃到食物，移除尾部（保留红色标记）
+            if (!ateFood) {
+                snake.pop();
+            }
+        }
+
+        // 检查食物碰撞
+        function checkFoodCollision() {
+            const head = snake[0];
+            let ateFood = false;
+
+            for (let i = 0; i < foods.length; i++) {
+                const food = foods[i];
+                if (head.x === food.x && head.y === food.y) {
+                    food.eaten = true;
+                    ateFood = true;
+
+                    if (food.isCorrect) {
+                        correctCount++;
+                        // 记录正确元素
+                        correctElements.push(food.element);
+                    } else {
+                        wrongCount++;
+                        // 记录错误元素
+                        wrongElements.push(food.element);
+                        // 在蛇尾添加一个红色格子
+                        const tail = {...snake[snake.length - 1], isError: true};
+                        snake.push(tail);
+                    }
+                    // 更新显示
+                    updateEatenLists();
+                }
+            }
+
+            // 如果吃到食物，重新生成所有食物
+            if (ateFood) {
+                generateFood();
+            }
+
+            return ateFood;
+        }
+
+        // 更新吃到的元素显示
+        function updateEatenLists() {
+            const correctList = document.getElementById('correct-list');
+            const wrongList = document.getElementById('wrong-list');
+
+            correctList.innerHTML = '';
+            wrongList.innerHTML = '';
+
+            // 显示正确吃到的元素（带中文名称）
+            correctElements.forEach(element => {
+                const li = document.createElement('li');
+                li.textContent = `${element.symbol}（${element.name}）`;
+                correctList.appendChild(li);
+            });
+
+            // 显示错误吃到的元素（仅符号）
+            wrongElements.forEach(element => {
+                const li = document.createElement('li');
+                li.textContent = element.symbol;
+                wrongList.appendChild(li);
+            });
+        }
+
+        // 显示中央提示
+        function showCenterHint(text) {
+            centerHint.text = text;
+            centerHint.visible = true;
+            centerHint.startTime = new Date().getTime();
+
+            // 添加淡入效果
+            centerHint.opacity = 0;
+            const fadeIn = setInterval(() => {
+                centerHint.opacity += 0.1;
+                if (centerHint.opacity >= 1) clearInterval(fadeIn);
+            }, 50);
+
+            // 1.5秒后开始淡出
+            setTimeout(() => {
+                const fadeOut = setInterval(() => {
+                    centerHint.opacity -= 0.1;
+                    if (centerHint.opacity <= 0) {
+                        clearInterval(fadeOut);
+                        centerHint.visible = false;
+                        centerHint.text = '';
+                    }
+                }, 50);
+            }, 1500);
+        }
+
+        // 绘制游戏画面
+        function drawGame(ctx, canvas) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 绘制蛇身
+            snake.forEach((segment, index) => {
+                if (segment.isError) {
+                    ctx.fillStyle = '#FF5252'; // 红色
+                } else {
+                    ctx.fillStyle = '#4CAF50'; // 绿色
+                }
+                ctx.fillRect(segment.x, segment.y, 20, 20);
+                ctx.strokeRect(segment.x, segment.y, 20, 20);
+            });
+
+            // 绘制两个食物
+            foods.forEach(food => {
+                ctx.fillStyle = '#4CAF50'; // 两个食物均为绿色
+                ctx.fillRect(food.x, food.y, 20, 20);
+                ctx.strokeRect(food.x, food.y, 20, 20);
+
+                ctx.fillStyle = 'white';
+                ctx.font = '12px Arial';
+                ctx.fillText(food.element.symbol, food.x + 5, food.y + 15);
+            });
+
+            ctx.fillStyle = '#333';
+            ctx.font = '16px Arial';
+            ctx.fillText(`正确: ${correctCount}  错误: ${wrongCount}`, 10, 20);
+
+            // 绘制中央提示（如果有）
+            if (centerHint.text && centerHint.visible) {
+                ctx.globalAlpha = centerHint.opacity;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(canvas.width/2 - 100, canvas.height/2 - 25, 200, 50);
+
+                ctx.fillStyle = 'white';
+                ctx.font = '24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(centerHint.text, canvas.width/2, canvas.height/2 + 10);
+                ctx.textAlign = 'left';
+                ctx.globalAlpha = 1.0; // 重置透明度
+            }
         }
     </script>
 </body>
