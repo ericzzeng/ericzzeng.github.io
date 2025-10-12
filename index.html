@@ -141,6 +141,152 @@
             z-index: 99;
             display: none;
         }
+/* 拼图游戏基本布局样式 */
+#puzzleGame {
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.puzzle-container {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.puzzle-board,
+.puzzle-pieces {
+  flex: 1;
+  background-color: #e9ecef;
+  padding: 15px;
+  border-radius: 8px;
+  min-height: 200px;
+}
+
+.difficulty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+/* 拼图块和位置槽样式 */
+.puzzle-board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.puzzle-pieces {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.puzzle-slot {
+  background-color: white;
+  border: 2px dashed #adb5bd;
+  border-radius: 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: bold;
+  height: 80px;
+  transition: all 0.3s ease;
+  text-align: center;
+  padding: 5px;
+}
+
+.puzzle-slot .symbol {
+  font-size: 1.5rem;
+  margin-bottom: 5px;
+}
+
+.puzzle-slot.correct {
+  border: 2px solid #28a745;
+  background-color: #d4edda;
+}
+
+.puzzle-piece {
+  background-color: white;
+  border: 2px solid #007bff;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: bold;
+  cursor: grab;
+  height: 80px;
+  transition: all 0.3s ease;
+  text-align: center;
+  padding: 5px;
+}
+
+
+.puzzle-piece:hover {
+  background-color: #e6f0ff;
+  transform: scale(1.05);
+}
+
+.timer, .score {
+  font-size: 1.1rem;
+  font-weight: bold;
+  padding: 5px 10px;
+  background-color: #343a40;
+  color: white;
+  border-radius: 5px;
+}
+
+/* 响应式设计 - 移动设备优化 */
+@media (max-width: 768px) {
+  .puzzle-container {
+    flex-direction: column;
+  }
+
+  .puzzle-piece,
+  .puzzle-slot {
+    height: 60px;
+    font-size: 1.2rem;
+  }
+
+  .game-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .timer, .score {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .puzzle-board,
+  .puzzle-pieces {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .puzzle-piece,
+  .puzzle-slot {
+    height: 50px;
+    font-size: 1rem;
+  }
+}
     </style>
 </head>
 <body>
@@ -150,6 +296,7 @@
         <select id="gameMode">
             <option value="snake" selected>元素符号贪吃蛇</option>
             <option value="match">元素符号消消乐</option>
+            <option value="puzzle">元素符号拼图挑战</option>
         </select>
         <select id="speedLevel">
             <option value="1">速度1（慢）</option>
@@ -183,7 +330,7 @@
     </div>
 
     <audio id="bubbleSound" preload="auto">
-        <source src="data:audio/mpeg;base64,SUQzBAAAAAABEVRYWFgAAAAtAAADY29tbWVudABCaWdTb3VuZEJhbmsuY29tIC8gTGFTb25vdGhlcXVlLm9yZwBURU5DAAAAHQAAA1N3aXRjaCBQbHVzIMKpIE5DSCBTb2Z0d2FyZQBUSVQyAAAABgAAAzIyMzUAVFNTRQAAAA8AAANMYXZmNTcuODMuMTAwAAAAAAAAAAAAAAD/80DEAAAAA0gAAAAATEFNRTMuMTAwVVVVVVVVVVVVVUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV" type="audio/mpeg">
+        <source src="data:audio/mpeg;base64,SUQzBAAAAAABEVRYWFgAAAAtAAADY29tbWVudABCaWdTb3VuZEJhbmsuY29tIC8gTGFTb25vdGhlcXVlLm9yZwBURU5DAAAAHQAAA1N3aXRjaCBQbHVzIMKpIE5DSCBTb2Z0d2FyZQBUSVQyAAAABgAAAzIyMzUAVFNTRQAAAA8AAANMYXZmNTcuODMuMTAwAAAAAAAAAAAAAAD/80DEAAAAA0gAAAAATEFNRTMuMTAwVVVVVVVVVVVVVUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV" type="audio/mpeg">
     </audio>
 
     <script>
@@ -327,35 +474,50 @@
             overlay.style.display = 'none';
 
             // 根据游戏模式初始化
-            if (gameMode === 'match') {
-                gameTitle.textContent = '元素符号消消乐';
-                gameContainer.style.display = 'flex';
-                if (document.getElementById('snakeCanvas')) {
-                    document.getElementById('snakeCanvas').style.display = 'none';
-                }
-                createGameCards();
-
-                // 开始计时
-                startTime = new Date().getTime();
-                currentTime = 0;
-                timerElement.textContent = `时间: ${currentTime}秒`;
-                clearInterval(timer);
-                timer = setInterval(updateTimer, 1000);
-            } else {
-                gameTitle.textContent = '元素符号贪吃蛇';
-                gameContainer.style.display = 'none';
-                // 显示游戏标题和计时器
-                gameTitle.style.display = 'block';
-                timerElement.style.display = 'block';
-                // 开始计时
-                startTime = new Date().getTime();
-                currentTime = 0;
-                timerElement.textContent = `时间: ${currentTime}秒`;
-                clearInterval(timer);
-                timer = setInterval(updateTimer, 1000);
-                // 初始化贪吃蛇游戏
-                initSnakeGame();
+        if (gameMode === 'match') {
+            gameTitle.textContent = '元素符号消消乐';
+            gameContainer.style.display = 'flex';
+            if (document.getElementById('snakeCanvas')) {
+                document.getElementById('snakeCanvas').style.display = 'none';
             }
+            createGameCards();
+
+            // 开始计时
+            startTime = new Date().getTime();
+            currentTime = 0;
+            timerElement.textContent = `时间: ${currentTime}秒`;
+            clearInterval(timer);
+            timer = setInterval(updateTimer, 1000);
+        } else if (gameMode === 'snake') {
+            gameTitle.textContent = '元素符号贪吃蛇';
+            gameContainer.style.display = 'none';
+            // 显示游戏标题和计时器
+            gameTitle.style.display = 'block';
+            timerElement.style.display = 'block';
+            // 开始计时
+            startTime = new Date().getTime();
+            currentTime = 0;
+            timerElement.textContent = `时间: ${currentTime}秒`;
+            clearInterval(timer);
+            timer = setInterval(updateTimer, 1000);
+            // 初始化贪吃蛇游戏
+            initSnakeGame();
+        } else if (gameMode === 'puzzle') {
+            gameTitle.textContent = '元素符号拼图挑战';
+            gameContainer.style.display = 'none';
+            // 显示游戏标题和计时器
+            gameTitle.style.display = 'block';
+            timerElement.style.display = 'block';
+            // 开始计时
+            startTime = new Date().getTime();
+            currentTime = 0;
+            timerElement.textContent = `时间: ${currentTime}秒`;
+            clearInterval(timer);
+            timer = setInterval(updateTimer, 1000);
+            // 初始化拼图游戏
+            initPuzzleGame();
+        }
+
         }
 
         // 生成食物（确保与蛇身网格精确对齐）
@@ -474,17 +636,7 @@
 
             // 开始游戏循环
             clearInterval(gameInterval);
-            gameInterval = setInterval(() => {
-                let ateFood = checkFoodCollision();
-                moveSnake(ateFood);
-
-                if (checkCollision()) {
-                    endGame();
-                    return;
-                }
-
-                drawGame(ctx, canvas);
-            }, snakeSpeed);
+            gameInterval = setInterval(gameLoop, snakeSpeed);
 
             // 添加键盘控制
             document.addEventListener('keydown', handleKeyDown);
@@ -912,6 +1064,176 @@
                 ctx.globalAlpha = 1.0; // 重置透明度
             }
         }
+
+        // 初始化拼图游戏
+        function initPuzzleGame() {
+            // 显示游戏容器
+            gameContainer.style.display = 'block';
+            gameContainer.innerHTML = '<div id="puzzleGame">' +
+                '<div class="game-header">' +
+                '   <div class="timer">时间: 90秒</div>' +
+                '   <div class="score">正确: 0</div>' +
+                '</div>' +
+                '<div class="puzzle-container">' +
+                '   <div class="puzzle-board" id="puzzleBoard"></div>' +
+                '   <div class="puzzle-pieces" id="puzzlePieces"></div>' +
+                '</div>' +
+                '<div class="difficulty">' +
+                '   <label>难度:</label>' +
+                '   <select id="puzzleDifficulty">' +
+                '       <option value="easy">初级</option>' +
+                '       <option value="medium" selected>中级</option>' +
+                '       <option value="hard">高级</option>' +
+                '   </select>' +
+                '</div>' +
+                '</div>';
+
+            // 初始化拼图游戏逻辑
+            setupPuzzleGame();
+        }
+
+        // 设置拼图游戏
+        function setupPuzzleGame() {
+            const difficulty = document.getElementById('puzzleDifficulty').value;
+            let gridSize;
+
+            // 根据难度设置网格大小
+            switch(difficulty) {
+                case 'easy': gridSize = 3; break;
+                case 'medium': gridSize = 4; break;
+                case 'hard': gridSize = 5; break;
+                default: gridSize = 4;
+            }
+
+            // 随机选择元素
+            const selectedElements = [];
+            while(selectedElements.length < gridSize * gridSize) {
+                const randomElement = elements[Math.floor(Math.random() * elements.length)];
+                if(!selectedElements.some(e => e.symbol === randomElement.symbol)) {
+                    selectedElements.push(randomElement);
+                }
+            }
+
+            // 创建拼图板
+            const puzzleBoard = document.getElementById('puzzleBoard');
+            puzzleBoard.innerHTML = '';
+            puzzleBoard.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+
+            // 创建拼图块区域
+            const puzzlePieces = document.getElementById('puzzlePieces');
+            puzzlePieces.innerHTML = '';
+            puzzlePieces.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+
+            // 打乱顺序的拼图块
+            const shuffledElements = [...selectedElements];
+            shuffleArray(shuffledElements);
+
+// 创建位置槽和拼图块
+            selectedElements.forEach((element, index) => {
+                // 创建位置槽
+                const slot = document.createElement('div');
+                slot.className = 'puzzle-slot';
+                slot.dataset.symbol = element.symbol;
+                slot.dataset.index = index;
+                slot.textContent = element.symbol;  // 显示元素符号
+                puzzleBoard.appendChild(slot);
+
+                // 创建拼图块
+                const piece = document.createElement('div');
+                piece.className = 'puzzle-piece';
+                piece.textContent = shuffledElements[index].name; // 显示元素名称
+                piece.dataset.symbol = shuffledElements[index].symbol;
+                piece.dataset.index = index;
+                piece.draggable = true;
+
+
+                // 添加拖拽事件
+                piece.addEventListener('dragstart', dragStart);
+                slot.addEventListener('dragover', dragOver);
+                slot.addEventListener('drop', drop);
+
+                puzzlePieces.appendChild(piece);
+            });
+
+            // 初始化游戏状态
+            let correctCount = 0;
+            let startTime = new Date().getTime();
+            const totalPieces = gridSize * gridSize;
+
+            // 更新计时器
+            const timerElement = document.querySelector('.timer');
+            const scoreElement = document.querySelector('.score');
+
+            const gameTimer = setInterval(() => {
+                const elapsed = Math.floor((new Date().getTime() - startTime) / 1000);
+                const remaining = 90 - elapsed;
+
+                if(remaining <= 0) {
+                    clearInterval(gameTimer);
+                    endPuzzleGame(correctCount, totalPieces);
+                    return;
+                }
+
+                timerElement.textContent = `时间: ${remaining}秒`;
+                scoreElement.textContent = `正确: ${correctCount}/${totalPieces}`;
+            }, 1000);
+
+            // 拖拽功能实现
+            let draggedPiece = null;
+
+            function dragStart(e) {
+                draggedPiece = e.target;
+                e.dataTransfer.setData('text/plain', e.target.dataset.index);
+            }
+
+            function dragOver(e) {
+                e.preventDefault();
+            }
+
+function drop(e) {
+                e.preventDefault();
+                const slot = e.target.closest('.puzzle-slot');
+                if (!slot || !draggedPiece) return;
+
+                // 检查是否正确
+                const isCorrect = slot.dataset.symbol === draggedPiece.dataset.symbol;
+
+                if(isCorrect) {
+                    slot.appendChild(draggedPiece);
+                    slot.classList.add('correct');
+                    correctCount++;
+                    // 添加正确匹配动画
+                    slot.style.animation = 'pulse 0.5s';
+                    setTimeout(() => slot.style.animation = '', 500);
+
+                    // 检查游戏是否完成
+                    if(correctCount === totalPieces) {
+                        clearInterval(gameTimer);
+                        endPuzzleGame(correctCount, totalPieces);
+                    }
+                } else {
+                    // 错误匹配反馈
+                    slot.style.animation = 'shake 0.5s';
+                    setTimeout(() => slot.style.animation = '', 500);
+                }
+                draggedPiece = null;
+            }
+
+
+
+
+
+            // 游戏结束处理
+            function endPuzzleGame(correct, total) {
+                const accuracy = Math.round((correct / total) * 100);
+
+                // 显示结果容器
+                resultDiv.textContent = `拼图挑战完成！正确率: ${accuracy}% (${correct}/${total})`;
+                resultContainer.style.display = 'block';
+                overlay.style.display = 'block';
+            }
+        }
+
     </script>
 </body>
 </html>
